@@ -1,0 +1,20 @@
+{
+  "name": "tweet-scraping",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Resumable X research collector with public API and persistent browser providers.",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "bin": { "tweet-scraping": "src/cli.mjs" },
+  "scripts": {
+    "collect": "node src/cli.mjs collect",
+    "login": "node src/cli.mjs login",
+    "discover": "node src/cli.mjs discover",
+    "hydrate": "node src/cli.mjs hydrate",
+    "export": "node src/cli.mjs export",
+    "test": "node --test",
+    "check": "node scripts/check.mjs"
+  },
+  "dependencies": { "playwright": "1.62.1" }
+}

@@ -1,0 +1,12 @@
+TweetScraping
+Copyright 2026 Patrick Dugan
+
+Browser session attachment, bounded research runs, Gaussian pacing, scrolling,
+and Google discovery adapted from patrickdugan/PuppetMaster (Apache-2.0).
+Upstream revision: 5e910ee5d206a359dac92943718604a0a3e722d3
+Files consulted: scripts/x-lead-research.ts, scripts/x-vip-list-capture.ts,
+README.md and AGENTS.md.
+https://github.com/patrickdugan/PuppetMaster
+
+The implementations here add tweet extraction, provider fallback, author checks,
+pagination, durable deduplication, checkpoints, evidence, and corpus export.
