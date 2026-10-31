@@ -46,6 +46,44 @@ No Cloudflare/CAPTCHA bypass is claimed. The public provider supplied data
 while direct browser routes were blocked. Gait, session reuse, backoff and
 manual challenge recovery are separate features with different purposes.
 
+## Live account exercise: @duganist
+
+The public provider reported account ID `3100174815` and **84,742 statuses**.
+That account counter includes reposts and is distinct from the saved authored
+post count. The initial batch collected 1,000 unique authored posts; continuation
+through the same replies-timeline cursor brought the dataset to **2,954**, with
+**2,221 replies**. A separate posts-only timeline pass exhausted 44 API pages
+and added zero new records. Both routes ended on empty result pages.
+
+The observed post dates range from May 6, 2026 at 00:44:49 UTC to October 31,
+2026 at 08:14:28 UTC. This range describes observed records and does not imply
+continuous or complete coverage between the dates. This is not the full
+account history. Both undated and January 2025 search probes failed with
+HTTP/provider 404; no authenticated browser session was available for search.
+
+A direct post-hydration check returned a matching @duganist record. The final
+dataset has 2,954 distinct IDs, a single matching author ID, valid post URLs,
+matching SHA-256 text hashes, valid timestamps, and existing evidence files
+for every record. The corpus and CSV exports both contain 2,954 posts. Data,
+reports and response evidence remain local under `runs/duganist/` and are
+ignored by Git.
+
+During the exercise, the collector was restarted from its durable cursor to
+reduce API pacing from 3–7 seconds to 1–2 seconds. The interrupted run has an
+`interrupted.json` note; resumed records passed the same integrity checks.
+
+Fixes made during this exercise:
+
+- Report saved authored posts, observed date range and the provider's separate
+  account status count, avoiding an implied full-account count.
+- Report remaining URLs and a bounded stop when hydration hits its limit.
+- Continue through already-known pages while cursors advance. The previous
+  ten-page heuristic could prevent a backfill from reaching older new posts.
+
+Older unavailable history requires another source, such as the account owner's
+downloaded X archive or authenticated date searches. Archive import has not
+been implemented or exercised by this run.
+
 ## Checks
 
 `node scripts/check.mjs` and `node --test`: **17 tests passed**. Tests include
