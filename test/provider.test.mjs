@@ -68,3 +68,21 @@ test('search uses documented feed parameter; hydration rejects mismatched author
   await hydrateFx({ ...options, urlsFile, limit: 10 }, store, budget);
   assert.equal(store.rows.has('2'), false);
 });
+
+test('account status count stays distinct from captured authored posts', async t => {
+  const row = post('1'); row.author.id = '3100174815'; row.author.statuses = 84742;
+  const { store, budget, options } = await fixture(t, (req, res) => res.end(JSON.stringify({ code: 200, results: [row], cursor: {} })));
+  await collectFx(options, store, budget);
+  const report = store.finish({ status: 'collected' });
+  assert.equal(report.total_tweets, 1); assert.equal(report.account.reported_status_count, 84742);
+  assert.match(report.account.counter_scope, /includes reposts/);
+  assert.equal(report.observed_range.earliest, '2026-10-01T00:00:00.000Z');
+});
+
+test('bounded hydration reports remaining URLs rather than a finished batch', async t => {
+  const { store, budget, options } = await fixture(t, (req, res) => res.end(JSON.stringify({ code: 200, status: post(req.url.split('/').at(-1)) })));
+  const urlsFile = path.join(store.dir, 'urls.txt');
+  fs.writeFileSync(urlsFile, 'https://x.com/tarunchitra/status/1\nhttps://x.com/tarunchitra/status/2\n');
+  const report = await hydrateFx({ ...options, urlsFile, limit: 10, maxPages: 1 }, store, budget);
+  assert.equal(report.stop, 'max_pages'); assert.equal(report.remaining, 1); assert.equal(store.rows.size, 1);
+});

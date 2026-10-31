@@ -117,11 +117,18 @@ Default output: `runs/<handle>/`. Sessions and run data are ignored by Git.
 | File | Meaning |
 | --- | --- |
 | `tweets.jsonl` | Captured text, author, date, metrics/media, source, text status and SHA-256 |
+| `account.json` | Provider account ID and reported status counter (includes reposts) |
 | `checkpoint-fx.json` | Cursor and date-window position; written after durable post writes |
 | `checkpoint-browser.json` | Search window; browser scrolling restarts and deduplicates on resume |
 | `candidates.jsonl` | Discovered links, kept outside the captured tweet dataset |
 | `evidence/<run-id>/` | Public API responses, DOM records, gate screenshots and events |
 | `summary.json` | Latest run outcome, new vs total counts, bounds and errors |
+
+Progress counts are saved authored posts, not the account's lifetime total.
+Summaries include the observed date range and the provider's separate account
+status counter when available. That counter includes reposts, so it is not an
+exact denominator for authored-post completeness. Continue the same command to
+resume beyond a configured batch cap; `--fresh` instead starts at the newest posts.
 
 Use the same `--out` directory to combine search and timeline results. A different
 provider/query scope starts fresh pagination while preserving unique posts. Use

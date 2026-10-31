@@ -82,14 +82,20 @@ export class Store {
   }
   checkpoint(key, value) { writeJson(path.join(this.dir, `checkpoint-${key}.json`), value); }
   loadCheckpoint(key) { return readJson(path.join(this.dir, `checkpoint-${key}.json`), null); }
+  observeAccount(account) {
+    writeJson(path.join(this.dir, 'account.json'), { ...account, observed_at: new Date().toISOString() });
+  }
   evidence(name, value) {
     const file = path.join(this.runDir, name);
     writeJson(file, value);
     return path.relative(this.dir, file).replaceAll('\\', '/');
   }
   finish(summary) {
+    const dates = [...this.rows.values()].map(row => row.created_at).filter(Boolean).sort();
     const report = { ...summary, run_id: this.runId, new_tweets: this.added,
       total_tweets: this.rows.size, finished_at: new Date().toISOString(),
+      observed_range: { earliest: dates[0] ?? null, latest: dates.at(-1) ?? null },
+      account: readJson(path.join(this.dir, 'account.json'), null),
       coverage: 'Observed available results only; historical completeness is not established.',
       events: this.events };
     writeJson(path.join(this.runDir, 'summary.json'), report);

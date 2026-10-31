@@ -51,6 +51,7 @@ export async function collectFx(options, store, budget) {
   const saved = options.fresh ? null : store.loadCheckpoint('fx');
   const state = saved?.scope === scope && !saved.complete ? saved : { scope, queryIndex: 0, cursor: null, complete: false };
   let pages = 0; let stale = 0;
+  let accountObserved = false;
   const cursors = new Set();
   while (state.queryIndex < queries.length && pages < options.maxPages && store.added < options.limit) {
     budget.check();
@@ -62,6 +63,17 @@ export async function collectFx(options, store, budget) {
     if (state.cursor) url.searchParams.set('cursor', state.cursor);
     const payload = await fetchJson(url, options, store, budget);
     if (!Array.isArray(payload.results)) throw new Error('Provider timeline response has no results array.');
+    if (!accountObserved) {
+      const author = payload.results.find(entry => entry.author?.screen_name?.toLowerCase() === options.handle)?.author;
+      if (author) {
+        accountObserved = true;
+        store.observeAccount({ handle: options.handle, id: author.id ?? null,
+          reported_status_count: author.statuses ?? null,
+          counter_scope: 'Provider account status counter includes reposts; it is not an authored-post archive count.',
+          source: 'fxtwitter_v2' });
+        if (author.statuses != null) console.log(`[account] @${options.handle}: provider reports ${author.statuses} statuses (includes reposts; collected separately).`);
+      }
+    }
     const evidence = store.evidence(`fx-${String(pages).padStart(4, '0')}.json`, { url: url.href, payload });
     pages++;
     const rows = fxRows(payload);
@@ -73,7 +85,7 @@ export async function collectFx(options, store, budget) {
       if (store.add(row, evidence)) added++;
     }
     store.event({ provider: 'fxtwitter', page: pages, received: rows.length, added, query });
-    console.log(`[fx] page ${pages}: ${rows.length} received, ${added} new @${options.handle} posts`);
+    console.log(`[fx] page ${pages}: ${rows.length} received, ${added} new @${options.handle} posts; ${store.rows.size} saved total`);
     // Keep the current cursor if the page was cut short, so resume loses no rows.
     if (truncated) { store.checkpoint('fx', state); return { provider: 'fxtwitter', stop: 'limit', pages }; }
     stale = rows.length && added === 0 ? stale + 1 : 0;
@@ -100,10 +112,9 @@ export async function hydrateFx(options, store, budget) {
   const text = fs.readFileSync(options.urlsFile, 'utf8');
   const urls = [...new Set(text.match(/https?:\/\/(?:www\.)?(?:x|twitter)\.com\/[a-z0-9_]+\/status\/\d+/gi) ?? [])];
   if (!urls.length) throw new Error('No tweet URLs found in --urls-file.');
+  const eligible = [...new Map(urls.map(tweetUrl).filter(item => item?.author === options.handle && !store.rows.has(item.id)).map(item => [item.id, item])).values()];
   let failed = 0; let attempted = 0;
-  for (const raw of urls) {
-    const item = tweetUrl(raw);
-    if (item.author !== options.handle || store.rows.has(item.id)) continue;
+  for (const item of eligible) {
     if (attempted >= options.maxPages || store.added >= options.limit) break;
     budget.check(); attempted++;
     const url = new URL(`/2/status/${item.id}`, options.apiBase);
@@ -114,7 +125,9 @@ export async function hydrateFx(options, store, budget) {
       if (!rows.length) throw new Error('Requested tweet was unavailable, filtered, or resolved to another author.');
       for (const row of rows) store.add(row, evidence);
     } catch (error) { failed++; store.event({ status: 'hydrate_failed', id: item.id, error: error.message }); }
-    if (attempted < Math.min(urls.length, options.maxPages) && store.added < options.limit) await budget.wait(gait(options.gaitMinMs, options.gaitMaxMs));
+    if (attempted < Math.min(eligible.length, options.maxPages) && store.added < options.limit) await budget.wait(gait(options.gaitMinMs, options.gaitMaxMs));
   }
-  return { provider: 'fxtwitter', attempted, failed, stop: failed ? 'partial_errors' : 'url_batch_finished' };
+  const remaining = eligible.length - attempted;
+  return { provider: 'fxtwitter', attempted, failed, remaining,
+    stop: failed ? 'partial_errors' : remaining ? (store.added >= options.limit ? 'limit' : 'max_pages') : 'url_batch_finished' };
 }

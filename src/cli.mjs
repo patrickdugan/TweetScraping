@@ -124,6 +124,8 @@ export async function main(argv = process.argv.slice(2)) {
           limit: options.limit, max_pages: options.maxPages, include_replies: options.includeReplies },
         results, errors, error: failure?.message ?? null });
       console.log(JSON.stringify({ status, new_tweets: summary.new_tweets, total_tweets: summary.total_tweets,
+        observed_range: summary.observed_range, account_status_count: summary.account?.reported_status_count,
+        account_counter_includes_reposts: summary.account ? true : undefined,
         new_candidates: results.find(r => r.new_candidates != null)?.new_candidates,
         summary: path.join(options.out, 'summary.json') }, null, 2));
       process.exitCode = status === 'failed' ? 1 : ['partial', 'bounded', 'empty'].includes(status) ? 2 : 0;

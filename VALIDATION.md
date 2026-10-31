@@ -48,11 +48,12 @@ manual challenge recovery are separate features with different purposes.
 
 ## Checks
 
-`node scripts/check.mjs` and `node --test`: **14 tests passed**. Tests include
+`node scripts/check.mjs` and `node --test`: **16 tests passed**. Tests include
 real Chrome DOM extraction on local fixtures, mixed authors/quotes, long note
 text, exclusive dates, pagination and mid-page resume, cursor loops,
 HTTP-200 provider errors, Retry-After, mismatched hydration authors, lock
-exclusion, crash-tail recovery and CSV/corpus exports.
+exclusion, crash-tail recovery, CSV/corpus exports, separate account-counter
+reporting, and correct stop/remaining counts for bounded hydration batches.
 
 The local HTTP and Chrome checks required execution outside the desktop
 sandbox; restricted loopback connections failed inside it. No test needs an
