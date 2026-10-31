@@ -80,19 +80,52 @@ Fixes made during this exercise:
 - Continue through already-known pages while cursors advance. The previous
   ten-page heuristic could prevent a backfill from reaching older new posts.
 
-Older unavailable history requires another source, such as the account owner's
-downloaded X archive or authenticated date searches. Archive import has not
-been implemented or exercised by this run.
+The subsequent public-search work below provides a credential-free historical
+route. Archive import has not been implemented or exercised.
+
+## Credential-free historical search
+
+Public mirror probes found a working historical search at
+`https://nitter.mie.foundation/duganist/search`. A January 2024 live page returned
+20 parseable cards; after author checks and exclusive end-date filtering, **15
+new authored posts** were added. A separate publicly indexed URL was hydrated
+successfully for February 6, 2020. The date-partitioned backfill then retrieved
+posts from **March 20, 2015** and continued forward through later 2015 windows.
+The durable bulk scan remains a running job, not a completed full-account archive.
+
+The mirror includes some posts on the requested exclusive end day, so local
+filtering is mandatory. Sidebar links include recent posts even on historical
+search pages; the parser reads only actual timeline cards. It excludes other
+authors' retweeted text and quoted text from the target author's writing.
+Numeric author IDs are unavailable on mirror rows; author handles and canonical
+post URLs must agree. Precise timestamps are derived from tweet snowflake IDs,
+with the displayed mirror date retained separately.
+
+The live run exposed an end-page markup variant: a `timeline-item` utility row
+containing only “Load newest.” It is now ignored so “No more items” can finish
+the window. HTTP 429 responses were observed and recovered using longer
+exponential backoff. The durable worker resumes bounded child runs and transient
+failures, exports snapshots after batches, and stops rather than spinning on a
+repeated cursor or unrecognized page.
+
+Other probes: the main Nitter service and XCancel returned suspension notices;
+several mirrors were unreachable, challenged, or had search disabled. A normal
+Chrome probe with reduced automation signals passed one mirror's Anubis check,
+but that mirror's search was disabled. No universal Cloudflare bypass is claimed.
+Public archive indexes did not supply a viable bulk source during these probes.
 
 ## Checks
 
-`node scripts/check.mjs` and `node --test`: **17 tests passed**. Tests include
+`node scripts/check.mjs` and `node --test`: **24 tests passed**. Tests include
 real Chrome DOM extraction on local fixtures, mixed authors/quotes, long note
 text, exclusive dates, pagination and mid-page resume, cursor loops,
 HTTP-200 provider errors, Retry-After, mismatched hydration authors, lock
 exclusion, crash-tail recovery, CSV/corpus exports, separate account-counter
 reporting, correct stop/remaining counts for bounded hydration batches, and
-backfills that cross more than ten known pages before reaching new records.
+backfills that cross more than ten known pages before reaching new records,
+historical HTML extraction and strict dates, utility-row handling, safe mirror
+pagination, lossless historical resume, durable child-batch resumption, export
+snapshots, and safe termination on repeated cursors.
 
 The local HTTP and Chrome checks required execution outside the desktop
 sandbox; restricted loopback connections failed inside it. No test needs an

@@ -9,7 +9,7 @@ import { collectFx, hydrateFx } from './fx.mjs';
 
 const help = `TweetScraping — no X API token required
 
-node src/cli.mjs collect --handle tarunchitra [--provider auto|fx|browser]
+node src/cli.mjs collect --handle tarunchitra [--provider auto|fx|browser|nitter]
 node src/cli.mjs collect --handle tarunchitra --mode search --since 2020-01-01 --until 2021-01-01
 node src/cli.mjs login [--user-data-dir .sessions/x | --cdp-url http://127.0.0.1:9222]
 node src/cli.mjs discover --handle tarunchitra
@@ -34,13 +34,14 @@ Options:
   --user-data-dir DIR    Dedicated persistent session (default .sessions/x).
   --cdp-url URL          Attach to existing authenticated Chrome/Edge.
   --api-base URL         Fx-compatible server (default https://api.fxtwitter.com).
+  --mirror-base URL      Public Nitter search server (default https://nitter.mie.foundation).
 
 Exit codes: 0 = command yielded data/session; 2 = bounded/partial/empty; 1 = failed.
 Coverage and provider failures are always recorded in summary.json.
 `;
 
 export function argumentsFor(argv) {
-  const strings = ['handle', 'out', 'provider', 'mode', 'limit', 'max-pages', 'max-minutes', 'since', 'until', 'window-days', 'gait-min-ms', 'gait-max-ms', 'retries', 'gate-wait-ms', 'channel', 'user-data-dir', 'cdp-url', 'api-base', 'urls-file', 'format', 'output'];
+  const strings = ['handle', 'out', 'provider', 'mode', 'limit', 'max-pages', 'max-minutes', 'since', 'until', 'window-days', 'gait-min-ms', 'gait-max-ms', 'retries', 'gate-wait-ms', 'channel', 'user-data-dir', 'cdp-url', 'api-base', 'mirror-base', 'urls-file', 'format', 'output'];
   const booleans = ['help', 'headless', 'fresh', 'include-replies'];
   const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: Object.fromEntries([
     ...strings.map(key => [key, { type: 'string' }]), ...booleans.map(key => [key, { type: 'boolean' }]),
@@ -59,14 +60,17 @@ export function argumentsFor(argv) {
   }
   if (values.since && values.until && values.since >= values.until) throw new Error('--since must precede --until.');
   const provider = values.provider ?? 'auto'; const mode = values.mode ?? 'timeline';
-  if (!['auto', 'fx', 'browser'].includes(provider)) throw new Error('Invalid --provider.');
+  if (!['auto', 'fx', 'browser', 'nitter'].includes(provider)) throw new Error('Invalid --provider.');
   if (!['timeline', 'search'].includes(mode)) throw new Error('Invalid --mode.');
+  if (provider === 'nitter' && (mode !== 'search' || !values.since || !values.until)) throw new Error('Nitter requires --mode search, --since and --until.');
   const channel = values.channel ?? 'chrome';
   if (!['chrome', 'msedge', 'chromium'].includes(channel)) throw new Error('Invalid --channel.');
   const gaitMinMs = number('gait-min-ms', 3000, 100, 60000);
   const gaitMaxMs = number('gait-max-ms', 7000, gaitMinMs, 60000);
   const apiBase = new URL(values['api-base'] ?? 'https://api.fxtwitter.com').href;
   if (!/^https?:/.test(apiBase)) throw new Error('--api-base must be HTTP(S).');
+  const mirrorBase = new URL(values['mirror-base'] ?? 'https://nitter.mie.foundation').href;
+  if (!/^https?:/.test(mirrorBase)) throw new Error('--mirror-base must be HTTP(S).');
   return { command, handle: name, out: path.resolve(values.out ?? `runs/${name}`), provider, mode,
     limit: number('limit', 1000, 1), maxPages: number('max-pages', 40, 1, 10000),
     maxMinutes: number('max-minutes', 15, 0.01, 1440), since: values.since, until: values.until,
@@ -74,7 +78,7 @@ export function argumentsFor(argv) {
     fresh: !!values.fresh, headless: !!values.headless, gaitMinMs, gaitMaxMs,
     retries: number('retries', 2, 0, 10), gateWaitMs: number('gate-wait-ms', 120000, 0, 3600000),
     channel, userDataDir: values['user-data-dir'] ?? '.sessions/x', cdpUrl: values['cdp-url'],
-    apiBase, urlsFile: values['urls-file'], format: values.format ?? 'corpus', output: values.output };
+    apiBase, mirrorBase, urlsFile: values['urls-file'], format: values.format ?? 'corpus', output: values.output };
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -94,7 +98,12 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     if ([...store.rows.values()].some(row => row.author !== options.handle)) throw new Error('Output directory contains another author. Choose a separate --out directory.');
     if (options.command === 'collect') {
-      if (['auto', 'fx'].includes(options.provider)) {
+      const publicHistory = options.provider === 'nitter' || (options.provider === 'auto' && options.mode === 'search' && options.since && options.until);
+      if (publicHistory) {
+        const { collectNitter } = await import('./nitter.mjs');
+        results.push(await collectNitter(options, store, budget));
+      }
+      if (!publicHistory && ['auto', 'fx'].includes(options.provider)) {
         try { results.push(await collectFx(options, store, budget)); }
         catch (error) {
           errors.push({ provider: 'fxtwitter', error: error.message });
@@ -103,7 +112,7 @@ export async function main(argv = process.argv.slice(2)) {
           console.log(`[auto] Public provider failed: ${error.message}. Trying browser.`);
         }
       }
-      if (options.provider === 'browser' || (options.provider === 'auto' && (!results.length || store.rows.size === 0))) {
+      if (!publicHistory && (options.provider === 'browser' || (options.provider === 'auto' && (!results.length || store.rows.size === 0)))) {
         const { collectBrowser } = await import('./browser.mjs');
         results.push(await collectBrowser(options, store, budget));
       }

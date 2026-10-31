@@ -5,9 +5,14 @@
   "type": "module",
   "description": "Resumable X research collector with public API and persistent browser providers.",
   "license": "Apache-2.0",
-  "engines": { "node": ">=22" },
-  "bin": { "tweet-scraping": "src/cli.mjs" },
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "tweet-scraping": "src/cli.mjs"
+  },
   "scripts": {
+    "backfill": "node scripts/backfill.mjs",
     "collect": "node src/cli.mjs collect",
     "login": "node src/cli.mjs login",
     "discover": "node src/cli.mjs discover",
@@ -16,5 +21,8 @@
     "test": "node --test",
     "check": "node scripts/check.mjs"
   },
-  "dependencies": { "playwright": "1.62.1" }
+  "dependencies": {
+    "cheerio": "1.1.2",
+    "playwright": "1.62.1"
+  }
 }
