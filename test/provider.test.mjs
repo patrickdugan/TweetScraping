@@ -86,3 +86,15 @@ test('bounded hydration reports remaining URLs rather than a finished batch', as
   const report = await hydrateFx({ ...options, urlsFile, limit: 10, maxPages: 1 }, store, budget);
   assert.equal(report.stop, 'max_pages'); assert.equal(report.remaining, 1); assert.equal(store.rows.size, 1);
 });
+
+test('backfill crosses more than ten known pages when cursors keep advancing', async t => {
+  const { store, budget, options } = await fixture(t, (req, res) => {
+    const page = Number(new URL(req.url, 'http://fixture').searchParams.get('cursor') ?? 0);
+    res.end(JSON.stringify({ code: 200, results: [post(String(page + 1))], cursor: page < 12 ? { bottom: String(page + 1) } : {} }));
+  });
+  for (let id = 1; id <= 12; id++) store.add({ id: String(id), author: 'tarunchitra', text: `Post ${id}` }, 'known');
+  store.initial = store.rows.size;
+  const report = await collectFx({ ...options, limit: 10, maxPages: 20 }, store, budget);
+  assert.equal(report.stop, 'available_results_exhausted'); assert.equal(report.pages, 13);
+  assert.equal(store.added, 1); assert.ok(store.rows.has('13'));
+});

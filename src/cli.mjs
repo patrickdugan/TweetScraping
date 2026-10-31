@@ -116,7 +116,7 @@ export async function main(argv = process.argv.slice(2)) {
   finally {
     budget.close(); process.off('SIGINT', onSignal); process.off('SIGTERM', onSignal);
     try {
-      const partialStops = ['limit', 'max_pages', 'max_scrolls', 'repeated_cursor', 'ten_pages_without_new_authored_posts', 'partial_errors'];
+      const partialStops = ['limit', 'max_pages', 'max_scrolls', 'repeated_cursor', 'partial_errors'];
       const empty = options.command === 'discover' ? !results.some(r => r.new_candidates) : options.command !== 'login' && store.added === 0;
       const status = failure ? (store.added ? 'partial' : 'failed') : partialStops.some(stop => results.some(r => r.stop === stop)) ? 'bounded' : empty ? 'empty' : errors.length ? 'recovered' : 'collected';
       const summary = store.finish({ mission: options.command, handle: options.handle, started_at: startedAt,

@@ -129,6 +129,8 @@ Summaries include the observed date range and the provider's separate account
 status counter when available. That counter includes reposts, so it is not an
 exact denominator for authored-post completeness. Continue the same command to
 resume beyond a configured batch cap; `--fresh` instead starts at the newest posts.
+Pages containing only known posts do not stop a backfill while pagination cursors
+advance. The collector continues within the configured page and time budgets.
 
 Use the same `--out` directory to combine search and timeline results. A different
 provider/query scope starts fresh pagination while preserving unique posts. Use

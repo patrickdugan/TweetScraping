@@ -50,7 +50,7 @@ export async function collectFx(options, store, budget) {
     since: options.since, until: options.until, base: options.apiBase });
   const saved = options.fresh ? null : store.loadCheckpoint('fx');
   const state = saved?.scope === scope && !saved.complete ? saved : { scope, queryIndex: 0, cursor: null, complete: false };
-  let pages = 0; let stale = 0;
+  let pages = 0;
   let accountObserved = false;
   const cursors = new Set();
   while (state.queryIndex < queries.length && pages < options.maxPages && store.added < options.limit) {
@@ -88,9 +88,8 @@ export async function collectFx(options, store, budget) {
     console.log(`[fx] page ${pages}: ${rows.length} received, ${added} new @${options.handle} posts; ${store.rows.size} saved total`);
     // Keep the current cursor if the page was cut short, so resume loses no rows.
     if (truncated) { store.checkpoint('fx', state); return { provider: 'fxtwitter', stop: 'limit', pages }; }
-    stale = rows.length && added === 0 ? stale + 1 : 0;
     const next = payload.cursor?.bottom;
-    if (!next || !rows.length) { state.queryIndex++; state.cursor = null; stale = 0; }
+    if (!next || !rows.length) { state.queryIndex++; state.cursor = null; }
     else {
       const key = `${state.queryIndex}:${next}`;
       if (cursors.has(key) || next === state.cursor) {
@@ -101,8 +100,8 @@ export async function collectFx(options, store, budget) {
     }
     state.complete = state.queryIndex >= queries.length;
     store.checkpoint('fx', state);
-    // Reposts can dominate a page. Do not treat zero authored tweets as exhaustion.
-    if (stale >= 10) return { provider: 'fxtwitter', stop: 'ten_pages_without_new_authored_posts', pages };
+    // Known posts/reposts are not exhaustion while the cursor still advances.
+    // Explicit page/time limits and repeated-cursor detection bound this scan.
     if (!state.complete && pages < options.maxPages && store.added < options.limit) await budget.wait(gait(options.gaitMinMs, options.gaitMaxMs));
   }
   return { provider: 'fxtwitter', stop: state.complete ? 'available_results_exhausted' : store.added >= options.limit ? 'limit' : 'max_pages', pages };
